@@ -131,7 +131,6 @@ class HotPotato(Node):
         cx, cy, cz = self._cube_pos()
         self._last_cube = (cx, cy, cz)
         arr.markers.append(self._make_cube((cx, cy, cz), now))
-        arr.markers.append(self._make_label((cx, cy, cz + 0.07), 'HOT!', now))
 
         self._scene_pub.publish(arr)
 
@@ -154,21 +153,6 @@ class HotPotato(Node):
         pulse = 0.5 + 0.5 * math.sin(t * 8.0)
         color = ColorRGBA(r=1.0, g=0.12 + 0.38 * pulse, b=0.0, a=1.0)
         return self._make_box(0, 'potato', pos, CUBE_SIZE, color, stamp)
-
-    def _make_label(self, pos, text, stamp):
-        m = Marker()
-        m.header.frame_id = 'world'
-        m.header.stamp = stamp
-        m.ns = 'potato_label'
-        m.id = 0
-        m.type = Marker.TEXT_VIEW_FACING
-        m.action = Marker.ADD
-        m.pose.position.x, m.pose.position.y, m.pose.position.z = pos
-        m.pose.orientation.w = 1.0
-        m.scale.z = 0.05
-        m.color = ColorRGBA(r=1.0, g=1.0, b=1.0, a=1.0)
-        m.text = text
-        return m
 
     def _make_box(self, mid, ns, pos, size, color, stamp):
         m = Marker()
