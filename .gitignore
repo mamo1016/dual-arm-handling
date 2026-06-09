@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environment (deps are listed in requirements.txt).
+# No trailing slash, so a .venv *symlink* (not just a directory) is ignored too.
+.venv
+venv
+
+# ROS 2 / colcon (when building in-tree)
+install/
+log/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Recorded demo media is fine to commit, but ignore scratch captures
+*.mkv
+scratch_*.mp4

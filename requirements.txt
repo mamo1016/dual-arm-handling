@@ -1,0 +1,6 @@
+# Python dependencies for the IK / kinematics (installed into a venv; see README).
+# ROS 2 packages (rclpy, tf2_ros, …) come from your ROS 2 distribution, not pip.
+numpy==1.26.4
+scipy==1.15.3
+roboticstoolbox-python==1.1.1
+spatialmath-python==1.1.15
