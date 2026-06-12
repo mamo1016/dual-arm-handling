@@ -19,8 +19,11 @@ coordination, inverse kinematics, and singularity-robust Cartesian control.
   solve by its achieved-pose error rather than the solver's `success` flag.
 - **Singularity-robust Cartesian control** — resolved-rate (Jacobian) servoing
   with damped least squares for straight-line, constant-orientation moves.
-- **Shortest-path joint motion** — commanded configurations are `unwrap`-ed per
-  joint so the arm never spins ~360° to reach a kinematically identical pose.
+- **Joint-limit-aware solutions** — every commanded configuration is mapped to
+  its unique in-range 2π-equivalent and gated against the URDF joint limits
+  (and the Cartesian servo integrates clamped to them), so the arm never spins
+  ~360° to a wrapped duplicate of the same pose and never folds a joint past
+  its hard stop.
 - **Two arms in one scene** — a combined two-arm URDF is generated
   programmatically from the single-arm description (name-prefixing that preserves
   mesh paths), spliced under a shared `world` frame.

@@ -70,15 +70,15 @@ class JointStateTranslator(Node):
         # Always start the path from where the arm actually is now, so playback
         # is continuous even if a message was dropped. A single setpoint becomes
         # a 2-point path (ease there); a trajectory is played through in order.
-        path = np.vstack([self._current_q, configs])
-        # Shortest angular route per joint. IK can return a setpoint a full turn
-        # away from an identical-looking pose (e.g. +5.6 rad where -0.68 rad has
-        # the SAME geometry), which makes the arm sweep ~360° for nothing.
-        # np.unwrap removes per-joint jumps > pi, anchored at the current pose
-        # (row 0 is left untouched), so each joint takes the minimal path to a
-        # kinematically identical target. It's a no-op for an already-smooth
-        # path, so the resolved-rate trajectories are unaffected.
-        self._waypoints = np.unwrap(path, axis=0)
+        #
+        # No np.unwrap here: the planner publishes canonical IN-JOINT-LIMIT
+        # configurations (every joint's range spans < 360°, so each pose has
+        # exactly one legal value). A 2π "shortest route" shortcut would sweep
+        # joints through the forbidden zone beyond their hard stops — poses
+        # where the link meshes fold through each other — and would leave
+        # _current_q on an out-of-range equivalent. A large jump now plays as
+        # a real (legal) swing the long way around.
+        self._waypoints = np.vstack([self._current_q, configs])
         self._t_anim = 0.0
         self.get_logger().info(
             f'New {"trajectory (%d pts)" % k if k > 1 else "setpoint"} '
