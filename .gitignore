@@ -24,3 +24,6 @@ log/
 # Recorded demo media is fine to commit, but ignore scratch captures
 *.mkv
 scratch_*.mp4
+
+# Local dev/session notes (not part of the published portfolio)
+SESSION_HANDOFF.md

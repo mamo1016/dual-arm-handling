@@ -30,6 +30,7 @@ setup(
             'arm_planner = dual_arm.arm_planner:main',
             'joint_state_translator = dual_arm.joint_state_translator:main',
             'hot_potato = dual_arm.hot_potato:main',
+            'pick_place_relay = dual_arm.pick_place_relay:main',
         ],
     },
 )
