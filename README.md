@@ -1,13 +1,19 @@
-# Dual-Arm Hot Potato 🔥🤖🤖
+# Dual-Arm Manipulation in ROS 2 🤖🤖
 
-Two 7-DOF [OpenArm](https://github.com/enactic/openarm) manipulators fling a single
-glowing cube back and forth across a shared workspace — faster and faster, as if
-it were too hot to hold. A small, self-contained **ROS 2** demo of dual-arm
-coordination, inverse kinematics, and singularity-robust Cartesian control.
+Two 7-DOF [OpenArm](https://github.com/enactic/openarm) manipulators sharing one
+workspace, driven by a self-contained inverse-kinematics and Cartesian-control
+stack — no MoveIt, no physics engine. Two coordinators run on the same pipeline:
 
-<!-- Record the rviz2 window and drop the clip in here:
-     ![hot potato demo](media/hot_potato.gif) -->
-> 📹 _Demo clip: add `media/hot_potato.gif` (or drag an `.mp4` into this README on github.com)._
+- **`pick_place_relay`** — a pick-and-place relay: two pedestal-mounted arms hand
+  a parcel back and forth between two table spots, each grasping and placing
+  **top-down** (gripper pointing straight down) with collision-aware, minimal-motion
+  joint paths.
+- **`hot_potato`** — a light-hearted showcase: the two arms fling one glowing cube
+  hand-to-hand, faster and faster, as if it were too hot to hold.
+
+<!-- Record the rviz2 window and drop a clip in here:
+     ![relay demo](media/pick_place_relay.gif) -->
+> 📹 _Demo clip: add `media/pick_place_relay.gif` (or drag an `.mp4` into this README on github.com)._
 
 ---
 
@@ -18,37 +24,46 @@ coordination, inverse kinematics, and singularity-robust Cartesian control.
   (Levenberg–Marquardt), with tolerance-based solution acceptance that judges a
   solve by its achieved-pose error rather than the solver's `success` flag.
 - **Singularity-robust Cartesian control** — resolved-rate (Jacobian) servoing
-  with damped least squares for straight-line, constant-orientation moves.
-- **Joint-limit-aware solutions** — every commanded configuration is mapped to
-  its unique in-range 2π-equivalent and gated against the URDF joint limits
-  (and the Cartesian servo integrates clamped to them), so the arm never spins
-  ~360° to a wrapped duplicate of the same pose and never folds a joint past
-  its hard stop.
+  with damped least squares for straight-line, constant-orientation moves (used
+  for the true-vertical lifts and lowers).
+- **Workspace keep-out** — a table volume constrains the *whole arm*, not just the
+  TCP: IK branches that would sweep a link through the table are rejected, and the
+  servo steers offending links away through the null space of the end-effector task.
+- **Joint-limit-aware, minimal-motion solutions** — every configuration is mapped
+  to its unique in-range 2π-equivalent and gated against the URDF joint limits
+  (the servo integrates clamped to them), and IK candidates are ranked by joint
+  travel from the current pose. Result: the arm never folds a joint past its hard
+  stop and never makes a redundant ~180° base swing to reach a point it could
+  reach with a small move — the disciplined motion you see on a factory line.
+- **Collision-aware bimanual coordination** — strict alternation keeps one arm in
+  the shared corridor at a time, and the idle arm tucks back over its own base
+  (idle poses chosen by a clearance search) so the working arm never fouls it.
 - **Two arms in one scene** — a combined two-arm URDF is generated
   programmatically from the single-arm description (name-prefixing that preserves
   mesh paths), spliced under a shared `world` frame.
-- **A coordinated bimanual handoff** — the `hot_potato` coordinator passes one
-  object hand-to-hand with an accelerating tempo.
 
 ## Architecture
 
 ```
-hot_potato ──/arm_X/target (Pose)──▶ arm_planner_X  (IK) ──▶
+coordinator ──/arm_X/target (Pose)──▶ arm_planner_X  (IK) ──▶
    /arm_X/joint_solution ──▶ joint_state_translator_X ──▶
    /joint_states ──▶ robot_state_publisher ──TF──▶ rviz2
 ```
 
-Each arm reuses the same per-arm pipeline; the coordinator only publishes
-Cartesian targets. The cube is an rviz marker that tracks whichever gripper's
-TCP currently "holds" it — so the toss-and-catch needs no physics engine.
+Each arm reuses the same per-arm pipeline; a coordinator (`pick_place_relay` or
+`hot_potato`) only publishes Cartesian targets. The carried object is an rviz
+marker that tracks whichever gripper's TCP currently "holds" it — so pick-place
+and toss-and-catch need no physics engine.
 
 | File | Role |
 |------|------|
-| `dual_arm/hot_potato.py` | Handoff coordinator (the demo) |
-| `dual_arm/arm_planner.py` | Per-arm IK + resolved-rate Cartesian trajectories |
+| `dual_arm/pick_place_relay.py` | Pick-and-place relay coordinator (top-down grasps) |
+| `dual_arm/hot_potato.py` | Bimanual handoff coordinator (the accelerating gag) |
+| `dual_arm/arm_planner.py` | Per-arm IK, keep-out, joint limits + resolved-rate Cartesian trajectories |
 | `dual_arm/joint_state_translator.py` | Eases joint solutions onto `/joint_states` |
 | `dual_arm/dual_urdf.py` | Builds the two-arm URDF from the single-arm one |
 | `dual_arm/openarm.py` | Minimal URDF loader for the OpenArm model |
+| `tools/verify_relay.py` | Headless check: replays the relay through the real planner, asserts table clearance, joint limits, and solve timing |
 
 ## Prerequisites
 
@@ -73,23 +88,39 @@ TCP currently "holds" it — so the toss-and-catch needs no physics engine.
 # from your ROS 2 workspace (e.g. ~/ros2_ws), with this repo under src/
 colcon build --symlink-install --packages-select dual_arm
 source install/setup.bash
-ros2 launch dual_arm hot_potato.launch.py
+
+ros2 launch dual_arm pick_place_relay.launch.py   # the pick-and-place relay
+# or
+ros2 launch dual_arm hot_potato.launch.py         # the hot-potato gag
 ```
 
-rviz2 opens with both arms playing hot potato. To capture a clip, screen-record
-the rviz2 window (~15–20 s catches a full slow→fast→reset cycle), then optionally:
+rviz2 opens with both arms running the chosen demo. To capture a clip,
+screen-record the rviz2 window, then optionally down-convert to a GIF:
 
 ```bash
-ffmpeg -i clip.mp4 -vf "fps=15,scale=720:-1" media/hot_potato.gif
+ffmpeg -i clip.mp4 -vf "fps=15,scale=720:-1" media/pick_place_relay.gif
 ```
 
-### Tuning the gag
-In `dual_arm/hot_potato.py`: lower `PERIOD_MIN` (more frantic), raise `CENTER`'s
-z (bigger toss arc), or lower `RESET_AFTER` (resets to slow more often).
+### Verifying the relay (headless, no GUI)
+`tools/verify_relay.py` drives the **real** planner through every phase and
+asserts no link enters the table, no joint exceeds its limit, and each solve
+fits the cycle budget:
 
-> **Note:** the launch file forces the `d3d12` Mesa driver, a workaround for
+```bash
+python3 tools/verify_relay.py a 2   # arm A, 2 cycles
+python3 tools/verify_relay.py b 2   # arm B, 2 cycles
+```
+
+### Tuning
+- **Relay speed** — `ANIM_DURATION` in `launch/pick_place_relay.launch.py` (per-move
+  duration) and `CYCLE_SECONDS` in `dual_arm/pick_place_relay.py` (phase tempo);
+  keep `CYCLE_SECONDS` a little above `ANIM_DURATION` so each move settles first.
+- **Hot-potato gag** — in `dual_arm/hot_potato.py`: lower `PERIOD_MIN` (more
+  frantic), raise `CENTER`'s z (bigger toss arc), or lower `RESET_AFTER`.
+
+> **Note:** the launch files force the `d3d12` Mesa driver, a workaround for
 > rviz2 freezing under WSLg. On native Linux with a real GPU, remove the
-> `additional_env` block in `launch/hot_potato.launch.py`.
+> `additional_env` block in the launch file.
 
 ## Credits & license
 

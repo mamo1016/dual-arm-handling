@@ -72,11 +72,15 @@ B = (-0.39, 0.05, Z_PICK)
 A_UP = (A[0], A[1], A[2] + LIFT)
 B_UP = (B[0], B[1], B[2] + LIFT)
 
-# Idle/rest poses, each tucked near its own arm's base (same offset relative to
-# the base as before the pedestals), well clear of the A–B corridor so the
-# waiting arm never fouls the working one.
-A_HOME = (ARM_A_XYZ[0] - 0.18, 0.20, PEDESTAL_H + 0.40)
-B_HOME = (ARM_B_XYZ[0] + 0.18, 0.20, PEDESTAL_H + 0.40)
+# Idle/rest poses: each arm folds UP and BACK over its OWN base (only 8 cm in
+# front of it, 30 cm above the pedestal) while the other works. The working arm
+# reaches all the way across to the far table spot, so the idle arm must clear
+# right out of the centre — a maximum-inter-arm-clearance search over (offset,
+# y, height) picked these (~210 mm min link-to-link gap across the whole cycle,
+# vs ~95 mm when the idle arm merely hovered near the corridor). They are also
+# what makes the just-placed arm visibly retreat before the other moves in.
+A_HOME = (ARM_A_XYZ[0] - 0.08, 0.0, PEDESTAL_H + 0.30)
+B_HOME = (ARM_B_XYZ[0] + 0.08, 0.0, PEDESTAL_H + 0.30)
 
 # Gripper orientations (w, x, y, z), found by the same limit-aware search:
 #   *_DOWN — TRUE top-down grasp: the TCP's approach (z/blue) axis points

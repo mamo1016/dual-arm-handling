@@ -111,6 +111,9 @@ class ArmPlanner(Node):
         # far past their hard stops, links visually intersecting) get through.
         self._qlim = np.array(
             [ln.qlim for ln in self._robot.links if ln.isjoint][:7])  # (7, 2)
+        # Keep the base yaw (joint1) in its forward half so the arm can never
+        # reach a pose by swinging ~180° to face backward. (Base joint only.)
+        self._qlim[0] = [0.0, np.pi]
 
         # Pick the TCP end-effector explicitly (don't rely on ee_links[0] ordering)
         ee_names = [ln.name for ln in self._robot.ee_links]
@@ -213,14 +216,20 @@ class ArmPlanner(Node):
             soft = -np.inf
             if self._keepout is not None:
                 soft, _ = self._swept_depth(self._last_q, q_sol)
-            # Rank: clearance violation first, then pose error.
-            key = (max(soft, 0.0), pos_mm + (ori_deg or 0))
+            # Rank: clearance first; then prefer ACCURATE solutions; then, among
+            # equally-accurate ones, the posture CLOSEST to where the arm is now
+            # (minimal joint travel). This is what stops the redundant base from
+            # flipping ~180° between branches to reach the same point.
+            accurate = (pos_mm <= POS_TOL_MM
+                        and (not constrain or ori_deg <= ORI_TOL_DEG))
+            travel = np.linalg.norm(q_sol - self._last_q)
+            key = (max(soft, 0.0),
+                   0.0 if accurate else pos_mm + (ori_deg or 0),
+                   travel)
             if best_key is None or key < best_key:
                 best_q, best_pos, best_ori, best_soft, best_key = \
                     q_sol, pos_mm, ori_deg, soft, key
-            if (pos_mm <= POS_TOL_MM and (not constrain or ori_deg <= ORI_TOL_DEG)
-                    and soft <= 0):
-                break   # accurate and clearance-safe — done
+            # No early break: evaluate every seed so the nearest branch wins.
 
         if best_q is None:
             self.get_logger().error(
